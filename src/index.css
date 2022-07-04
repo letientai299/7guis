@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  button {
+    border: 1px solid gray;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+  }
+}
+
+@layer utilities {
+  .debug {
+    border: 1px solid red;
+  }
+}

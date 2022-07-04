@@ -1,28 +1,37 @@
-import { useState } from 'react';
+import React from 'react';
+import Counter from './components/Counter';
 
 function App() {
-  const [count, setCount] = useState(0);
+  const guis: {
+    name: string;
+    com: React.FC<React.HTMLProps<HTMLElement>>;
+  }[] = [
+    { name: 'Counter', com: Counter },
+    // { name: 'Temperature Converter', com: <TemperatureConverter /> },
+    // { name: 'Flight Booker', com: <FlightBooker /> },
+    // { name: 'Timer', com: <Timer /> },
+    // { name: 'CRUD', com: <CRUD /> },
+    // { name: 'Circle Drawer', com: <CircleDrawer /> },
+    // { name: 'Cells', com: <Cells /> },
+  ];
 
   return (
-    <main className="grid w-screen h-screen place-content-center text-center">
-      <p>Hello Vite + React!</p>
-      <p>
-        Env: <code>{process.env.NODE_ENV}</code>
-      </p>
-      <p>
-        <button
-          className={
-            'border border-solid border-1 border-amber-400 p-1 rounded-md'
-          }
-          type="button"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          count: {count}
-        </button>
-      </p>
-      <p>
-        Edit <code>App.tsx</code> and save to test HMR updates.
-      </p>
+    <main className="prose m-auto">
+      <h1>
+        <a href="https://eugenkiss.github.io/7guis" target="_blank">
+          7GUIs
+        </a>
+      </h1>
+      {guis.map((g) => {
+        return (
+          <section className="grid grid-cols-3 h-fit border-b p-3 gap-2">
+            <strong className="col-span-1">{g.name}</strong>
+            <div className="col-span-2 rounded-md border border-gray-500 p-2">
+              <g.com />
+            </div>
+          </section>
+        );
+      })}
     </main>
   );
 }
