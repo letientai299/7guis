@@ -1,5 +1,6 @@
 import React from 'react';
 import Counter from './components/Counter';
+import TemperatureConverter from './components/TemperatureConverter';
 
 function App() {
   const guis: {
@@ -7,7 +8,7 @@ function App() {
     com: React.FC<React.HTMLProps<HTMLElement>>;
   }[] = [
     { name: 'Counter', com: Counter },
-    // { name: 'Temperature Converter', com: <TemperatureConverter /> },
+    { name: 'Temperature Converter', com: TemperatureConverter },
     // { name: 'Flight Booker', com: <FlightBooker /> },
     // { name: 'Timer', com: <Timer /> },
     // { name: 'CRUD', com: <CRUD /> },
@@ -24,7 +25,10 @@ function App() {
       </h1>
       {guis.map((g) => {
         return (
-          <section className="grid grid-cols-3 h-fit border-b p-3 gap-2">
+          <section
+            key={g.name}
+            className="grid grid-cols-3 h-fit border-b p-3 gap-2"
+          >
             <strong className="col-span-1">{g.name}</strong>
             <div className="col-span-2 rounded-md border border-gray-500 p-2">
               <g.com />

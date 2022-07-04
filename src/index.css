@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 @layer base {
+  input:enabled,
   button {
     border: 1px solid gray;
     padding: 0.25rem;
