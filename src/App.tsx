@@ -1,4 +1,5 @@
 import React from 'react';
+import CircleDrawer from './components/CircleDrawer';
 import Counter from './components/Counter';
 import CRUD from './components/CRUD';
 import FlightBooker from './components/FlightBooker';
@@ -15,7 +16,7 @@ function App() {
     { name: 'Flight Booker', com: FlightBooker },
     { name: 'Timer', com: Timer },
     { name: 'CRUD', com: CRUD },
-    // { name: 'Circle Drawer', com: <CircleDrawer /> },
+    { name: 'Circle Drawer', com: CircleDrawer },
     // { name: 'Cells', com: <Cells /> },
   ];
 
