@@ -8,17 +8,15 @@ describe('Counter', () => {
     const btn = screen.getByRole('button');
     expect(btn).toBeDefined();
 
-    const textBox = screen.getByRole('textbox');
-    expect(textBox).toBeDefined();
-    expect(textBox).toBeInstanceOf(HTMLInputElement);
-    const input = textBox as HTMLInputElement;
-    expect(input.value).toContain(0);
+    const div = screen.getByText(/Click/i);
+    expect(div).toBeDefined();
+    expect(div.textContent).toContain(0);
 
     const n = 10;
     for (let i = 0; i < n; i++) {
       fireEvent.click(btn);
     }
 
-    expect(input.value).toContain(n);
+    expect(div.textContent).toContain(n);
   });
 });

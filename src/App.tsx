@@ -1,5 +1,6 @@
 import React from 'react';
 import Counter from './components/Counter';
+import FlightBooker from './components/FlightBooker';
 import TemperatureConverter from './components/TemperatureConverter';
 
 function App() {
@@ -9,7 +10,7 @@ function App() {
   }[] = [
     { name: 'Counter', com: Counter },
     { name: 'Temperature Converter', com: TemperatureConverter },
-    // { name: 'Flight Booker', com: <FlightBooker /> },
+    { name: 'Flight Booker', com: FlightBooker },
     // { name: 'Timer', com: <Timer /> },
     // { name: 'CRUD', com: <CRUD /> },
     // { name: 'Circle Drawer', com: <CircleDrawer /> },
@@ -19,7 +20,7 @@ function App() {
   return (
     <main className="prose m-auto">
       <h1>
-        <a href="https://eugenkiss.github.io/7guis" target="_blank">
+        <a href="https://eugenkiss.github.io/7guis/tasks" target="_blank">
           7GUIs
         </a>
       </h1>
