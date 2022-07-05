@@ -2,6 +2,7 @@ import React from 'react';
 import Counter from './components/Counter';
 import FlightBooker from './components/FlightBooker';
 import TemperatureConverter from './components/TemperatureConverter';
+import Timer from './components/Timer';
 
 function App() {
   const guis: {
@@ -11,7 +12,7 @@ function App() {
     { name: 'Counter', com: Counter },
     { name: 'Temperature Converter', com: TemperatureConverter },
     { name: 'Flight Booker', com: FlightBooker },
-    // { name: 'Timer', com: <Timer /> },
+    { name: 'Timer', com: Timer },
     // { name: 'CRUD', com: <CRUD /> },
     // { name: 'Circle Drawer', com: <CircleDrawer /> },
     // { name: 'Cells', com: <Cells /> },
