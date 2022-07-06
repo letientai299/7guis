@@ -1,4 +1,5 @@
 import React from 'react';
+import Cells from './components/Cells';
 import CircleDrawer from './components/CircleDrawer';
 import Counter from './components/Counter';
 import CRUD from './components/CRUD';
@@ -17,7 +18,7 @@ function App() {
     { name: 'Timer', com: Timer },
     { name: 'CRUD', com: CRUD },
     { name: 'Circle Drawer', com: CircleDrawer },
-    // { name: 'Cells', com: <Cells /> },
+    { name: 'Cells', com: Cells },
   ];
 
   return (
