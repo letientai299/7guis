@@ -7,6 +7,8 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+
+	"github.com/letientai299/7guis/tui/task"
 )
 
 const url7GUIs = "https://eugenkiss.github.io/7guis/tasks/"
@@ -48,18 +50,21 @@ func createApp() *tview.Application {
 
 	app := tview.NewApplication().SetRoot(flex, true)
 	app.EnableMouse(true)
+
+	focusingMenu := true
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		key := event.Key()
 		if key != tcell.KeyTAB && key != tcell.KeyBacktab {
 			return event
 		}
-		focused := app.GetFocus()
-		if focused == nil || focused == menu {
+
+		if focusingMenu {
 			app.SetFocus(pages)
 		} else {
 			app.SetFocus(menu)
 		}
 
+		focusingMenu = !focusingMenu
 		return nil
 	})
 
@@ -133,7 +138,7 @@ type Task struct {
 
 func tasks() []Task {
 	tasks := []Task{
-		{name: "Counter", widget: nil},
+		{name: "Counter", widget: task.Counter()},
 		{name: "Temperature Converter", widget: nil},
 		{name: "Flight Booker", widget: nil},
 		{name: "Timer", widget: nil},

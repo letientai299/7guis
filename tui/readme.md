@@ -6,5 +6,5 @@ For quick edit and review loop, use `nodemon` to watch for code change, rebuild
 and restart the application via:
 
 ```sh
-$ nodemon -w *.go -x './restart.sh'
+$ nodemon -w . -e .go -x './restart.sh'
 ```
