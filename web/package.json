@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "setup": "npm i -g pnpm && pnpm add -g pnpm && pnpm i && git init && pnpm husky install",
+    "setup": "cd .. && husky install",
     "dev": "vite",
     "test": "vitest --run",
     "test:watch": "vitest --watch",
