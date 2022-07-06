@@ -13,6 +13,19 @@ import (
 
 const url7GUIs = "https://eugenkiss.github.io/7guis/tasks/"
 
+func tasks(app *tview.Application) []Task {
+	tasks := []Task{
+		{name: "Counter", widget: task.Counter()},
+		{name: "Temperature Converter", widget: task.TemperatureConverter()},
+		{name: "Flight Booker", widget: task.FlightBooker(app)},
+		{name: "Timer", widget: nil},
+		{name: "CRUD", widget: nil},
+		{name: "Circle Drawer", widget: nil},
+		{name: "Cells", widget: nil},
+	}
+	return tasks
+}
+
 func main() {
 	app := createApp()
 	done := make(chan struct{})
@@ -40,7 +53,9 @@ func main() {
 }
 
 func createApp() *tview.Application {
-	tasks := tasks()
+	app := tview.NewApplication()
+	tasks := tasks(app)
+
 	pages := createPages(tasks)
 	menu := createSidebar(tasks, pages)
 
@@ -48,7 +63,7 @@ func createApp() *tview.Application {
 	flex.AddItem(menu, len(url7GUIs)+3, 1, true)
 	flex.AddItem(pages, 0, 1, false)
 
-	app := tview.NewApplication().SetRoot(flex, true)
+	app.SetRoot(flex, true)
 	app.EnableMouse(true)
 
 	focusingMenu := true
@@ -73,14 +88,14 @@ func createApp() *tview.Application {
 
 func createPages(tasks []Task) *tview.Pages {
 	pages := tview.NewPages()
-	for i, task := range tasks {
+	for i, t := range tasks {
 		var view tview.Primitive
-		if task.widget != nil {
-			view = task.widget
+		if t.widget != nil {
+			view = t.widget
 		} else {
-			view = tview.NewTextView().SetText(task.name)
+			view = tview.NewTextView().SetText(t.name)
 		}
-		pages.AddPage(task.name, view, true, i == 0)
+		pages.AddPage(t.name, view, true, i == 0)
 	}
 
 	pages.SetBorder(true)
@@ -89,7 +104,7 @@ func createPages(tasks []Task) *tview.Pages {
 
 func createSidebar(tasks []Task, pages *tview.Pages) tview.Primitive {
 	menu := createMenu(tasks, pages)
-	menu.SetCurrentItem(1)
+	menu.SetCurrentItem(2)
 	frame := tview.NewFrame(menu)
 	frame.SetBorder(true)
 	frame.SetBorders(0, 0, 1, 1, 1, 1)
@@ -101,11 +116,11 @@ func createSidebar(tasks []Task, pages *tview.Pages) tview.Primitive {
 func createMenu(tasks []Task, pages *tview.Pages) *tview.List {
 	menu := tview.NewList()
 	menuWidth := 0
-	for i, task := range tasks {
-		if len(task.name) > menuWidth {
-			menuWidth = len(task.name)
+	for i, t := range tasks {
+		if len(t.name) > menuWidth {
+			menuWidth = len(t.name)
 		}
-		menu.AddItem(task.name, "", rune(i+'0'), nil)
+		menu.AddItem(t.name, "", rune(i+'0'), nil)
 	}
 
 	menu.ShowSecondaryText(false)
@@ -135,17 +150,4 @@ func createMenu(tasks []Task, pages *tview.Pages) *tview.List {
 type Task struct {
 	name   string
 	widget tview.Primitive
-}
-
-func tasks() []Task {
-	tasks := []Task{
-		{name: "Counter", widget: task.Counter()},
-		{name: "Temperature Converter", widget: task.TemperatureConverter()},
-		{name: "Flight Booker", widget: nil},
-		{name: "Timer", widget: nil},
-		{name: "CRUD", widget: nil},
-		{name: "Circle Drawer", widget: nil},
-		{name: "Cells", widget: nil},
-	}
-	return tasks
 }
