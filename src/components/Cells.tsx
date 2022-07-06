@@ -21,7 +21,11 @@ const row = (
   onChange: (name: string, text: string) => void,
   getCellData: (name: string) => CellData,
 ) => {
-  const cells = [<th className={thStyle}>{r}</th>];
+  const cells = [
+    <th className={thStyle} key={'row-head-' + r}>
+      {r}
+    </th>,
+  ];
   for (let c = 0; c < Cols; c++) {
     const name = cellName(r, c);
     const data = getCellData(name);
@@ -36,11 +40,11 @@ const row = (
     );
     cells.push(cell);
   }
-  return <tr key={r}>{cells}</tr>;
+  return <tr key={'row-' + r}>{cells}</tr>;
 };
 
 const headerRow = () => {
-  const cells = [<th className={thStyle}></th>];
+  const cells = [<th className={thStyle} key={'row-head-0'}></th>];
 
   let char = 'A'.charCodeAt(0);
   for (let i = 0; i < Cols; i++) {
