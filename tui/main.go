@@ -18,7 +18,7 @@ func tasks(app *tview.Application) []Task {
 		{name: "Counter", widget: task.Counter()},
 		{name: "Temperature Converter", widget: task.TemperatureConverter()},
 		{name: "Flight Booker", widget: task.FlightBooker(app)},
-		{name: "Timer", widget: nil},
+		{name: "Timer", widget: task.Timer(app)},
 		{name: "CRUD", widget: nil},
 		{name: "Circle Drawer", widget: nil},
 		{name: "Cells", widget: nil},
