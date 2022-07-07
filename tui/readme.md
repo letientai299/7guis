@@ -1,5 +1,10 @@
 # TUI implementation in Go of 7GUIs task
 
+**NOTE**:
+
+- This project is for learning [`tview`](https://github.com/rivo/tview) and
+  building TUI apps only. The code is neither optimized nor truely correct.
+
 ## Developing
 
 For quick edit and review loop, use `nodemon` to watch for code change, rebuild

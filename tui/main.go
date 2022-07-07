@@ -19,7 +19,7 @@ func tasks(app *tview.Application) []Task {
 		{name: "Temperature Converter", widget: task.TemperatureConverter()},
 		{name: "Flight Booker", widget: task.FlightBooker(app)},
 		{name: "Timer", widget: task.Timer(app)},
-		{name: "CRUD", widget: nil},
+		{name: "CRUD", widget: task.CRUD()},
 		{name: "Circle Drawer", widget: nil},
 		{name: "Cells", widget: nil},
 	}
@@ -121,7 +121,7 @@ func createPages(tasks []Task) *tview.Pages {
 
 func createSidebar(tasks []Task, pages *tview.Pages) tview.Primitive {
 	menu := createMenu(tasks, pages)
-	menu.SetCurrentItem(3)
+	menu.SetCurrentItem(4)
 	frame := tview.NewFrame(menu)
 	frame.SetBorder(true)
 	frame.SetBorders(0, 0, 1, 1, 1, 1)

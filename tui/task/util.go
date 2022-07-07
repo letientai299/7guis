@@ -22,3 +22,37 @@ func centerScreen(widget tview.Primitive, width, height int) tview.Primitive {
 			height, 0, true).
 		AddItem(nil, 0, 1, false)
 }
+
+func enable(p tview.Primitive) {
+	var b *tview.Box
+	switch x := p.(type) {
+	case *tview.InputField:
+		x.SetLabelColor(tview.Styles.PrimaryTextColor)
+		b = x.Box
+	case *tview.Button:
+		x.SetBackgroundColor(tview.Styles.ContrastBackgroundColor)
+		b = x.Box
+	}
+
+	if b != nil {
+		b.SetFocusFunc(nil)
+	}
+}
+
+func disable(p tview.Primitive) {
+	var b *tview.Box
+	switch x := p.(type) {
+	case *tview.InputField:
+		x.SetLabelColor(ColorDisabled)
+		b = x.Box
+	case *tview.Button:
+		x.SetBackgroundColor(ColorDisabled)
+		b = x.Box
+	}
+
+	if b != nil {
+		b.SetFocusFunc(func() {
+			b.Blur()
+		})
+	}
+}

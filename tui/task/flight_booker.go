@@ -143,9 +143,9 @@ func (fb *flightBooker) enabledFields() []tview.Primitive {
 func (fb *flightBooker) adjustBookButton() bool {
 	v := fb.canBook()
 	if v {
-		fb.enable(fb.bookButton)
+		enable(fb.bookButton)
 	} else {
-		fb.disable(fb.bookButton)
+		disable(fb.bookButton)
 	}
 	return v
 }
@@ -169,46 +169,12 @@ func (fb *flightBooker) canBook() bool {
 
 func (fb *flightBooker) onFlightTypeChange(_ string, index int) {
 	if index == 0 { // one-way
-		fb.disable(fb.arrivalInput)
+		disable(fb.arrivalInput)
 		return
 	}
 
-	fb.enable(fb.arrivalInput)
+	enable(fb.arrivalInput)
 	fb.adjustBookButton()
-}
-
-func (fb *flightBooker) enable(p tview.Primitive) {
-	var b *tview.Box
-	switch x := p.(type) {
-	case *tview.InputField:
-		x.SetLabelColor(tview.Styles.PrimaryTextColor)
-		b = x.Box
-	case *tview.Button:
-		x.SetBackgroundColor(tview.Styles.ContrastBackgroundColor)
-		b = x.Box
-	}
-
-	if b != nil {
-		b.SetFocusFunc(nil)
-	}
-}
-
-func (fb *flightBooker) disable(p tview.Primitive) {
-	var b *tview.Box
-	switch x := p.(type) {
-	case *tview.InputField:
-		x.SetLabelColor(ColorDisabled)
-		b = x.Box
-	case *tview.Button:
-		x.SetBackgroundColor(ColorDisabled)
-		b = x.Box
-	}
-
-	if b != nil {
-		b.SetFocusFunc(func() {
-			b.Blur()
-		})
-	}
 }
 
 func (fb *flightBooker) parseDate(v string) (time.Time, error) {
