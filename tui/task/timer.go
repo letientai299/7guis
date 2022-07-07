@@ -10,7 +10,6 @@ import (
 
 func Timer(app *tview.Application) tview.Primitive {
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBorder(true)
 
 	total := time.Second * 10
 	p := NewProgress("Elapsed Time", float32(total))
@@ -54,7 +53,7 @@ func Timer(app *tview.Application) tview.Primitive {
 		return event
 	})
 
-	return centerScreen(container, 50, 10)
+	return container
 }
 
 func timerUpdate(app *tview.Application, p *Progress) {

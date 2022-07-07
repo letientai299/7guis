@@ -1,8 +1,6 @@
 package task
 
 import (
-	"fmt"
-	"log"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -11,6 +9,7 @@ import (
 
 type flightBooker struct {
 	app            *tview.Application
+	pages          *tview.Pages
 	typeInput      *tview.DropDown
 	departureInput *tview.InputField
 	arrivalInput   *tview.InputField
@@ -24,6 +23,14 @@ func FlightBooker(app *tview.Application) tview.Primitive {
 }
 
 func (fb *flightBooker) render() tview.Primitive {
+	fb.pages = tview.NewPages()
+	fb.pages.AddPage("main", fb.renderMain(), true, true)
+	fb.pages.AddPage("dialog", fb.renderDialog(), true, false)
+
+	return fb.pages
+}
+
+func (fb *flightBooker) renderMain() tview.Primitive {
 	const labelWidth = 20
 	const optionWidth = 24
 	const datePlaceHolder = "dd.mm.yyyy"
@@ -182,19 +189,26 @@ func (fb *flightBooker) parseDate(v string) (time.Time, error) {
 }
 
 func (fb *flightBooker) book() {
-	fb.app.Suspend(func() {
-		var msg string
-		if i, _ := fb.typeInput.GetCurrentOption(); i == 0 {
-			msg = fmt.Sprintf("Booked a one way flight for %s", fb.departureInput.GetText())
-		} else {
-			msg = fmt.Sprintf("Booked a returned flight for %s and %s",
-				fb.departureInput.GetText(),
-				fb.arrivalInput.GetText(),
-			)
-		}
+	fb.pages.SwitchToPage("dialog")
+}
 
-		log.Println(msg)
-		log.Println("Press Enter to continue")
-		_, _ = fmt.Scanln()
-	})
+func (fb *flightBooker) renderDialog() tview.Primitive {
+	dialog := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(
+			tview.NewTextView().
+				SetText("Booked a flight for you").
+				SetTextAlign(tview.AlignCenter),
+			0, 3, false,
+		).
+		AddItem(
+			tview.NewButton("OK").
+				SetSelectedFunc(func() {
+					fb.pages.SwitchToPage("main")
+				}),
+			1, 0, true,
+		)
+
+	dialog.SetBorder(true)
+	return centerScreen(dialog, 30, 5)
 }

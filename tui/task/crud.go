@@ -91,7 +91,6 @@ type crud struct {
 
 func (c *crud) render() tview.Primitive {
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBorder(true)
 
 	filterInput := tview.NewInputField().
 		SetLabel("Filter prefix").
@@ -133,7 +132,7 @@ func (c *crud) render() tview.Primitive {
 		1, 0, false,
 	)
 
-	return centerScreen(container, 50, 16)
+	return container
 }
 
 func (c *crud) setFilter(text string) {
