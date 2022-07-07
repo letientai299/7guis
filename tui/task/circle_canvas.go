@@ -140,6 +140,7 @@ func (cc *CircleCanvas) addOrSelectCircle(x int, y int) {
 
 	// has a circle at the selected center already
 	cc.selected = center
+	c = cc.mCircles[center]
 	cc.slider = NewSlider("Radius", minRadius, int64(c.r), maxRadius)
 	rx, ry, _, _ := cc.GetInnerRect()
 

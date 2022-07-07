@@ -22,7 +22,7 @@ func tasks(app *tview.Application) []Task {
 		{name: "Timer", widget: task.Timer(app)},
 		{name: "CRUD", widget: task.CRUD()},
 		{name: "Circle Drawer", widget: task.CircleDrawer()},
-		{name: "Cells", widget: nil},
+		{name: "Cells", widget: task.Cells()},
 	}
 	return tasks
 }
