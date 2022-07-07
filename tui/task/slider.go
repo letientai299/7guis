@@ -43,6 +43,16 @@ func (p *Slider) SetChangedFunc(fn func(v int64)) *Slider {
 	p.changed = fn
 	return p
 }
+
+func (p *Slider) SetValue(v int64) *Slider {
+	p.val = v
+	if p.changed != nil {
+		p.changed(v)
+	}
+
+	return p
+}
+
 func (p *Slider) SetFormatter(fn func(v int64) string) *Slider {
 	p.formatValue = fn
 	return p
@@ -64,9 +74,9 @@ func (p *Slider) Draw(screen tcell.Screen) {
 	)
 
 	left := int(
-		math.Floor(float64(float32(p.val-p.min) / float32(p.max-p.min) *
+		math.Floor(float64(float32(p.val-p.min)/float32(p.max-p.min)*
 			float32(width))),
-	)
+	) + 1
 	if left > width {
 		left = width
 	}
@@ -123,8 +133,7 @@ func (p *Slider) MouseHandler() func(action tview.MouseAction, event *tcell.Even
 			if (action == tview.MouseMove && event.Buttons() == tcell.ButtonPrimary) ||
 				action == tview.MouseLeftClick {
 				left := x - rx + 1
-				f := float64(left) / float64(w) * float64(p.max-p.min)
-				f = math.Round(f/1000) * 1000
+				f := math.Round(float64(left) / float64(w) * float64(p.max-p.min))
 				p.val = int64(f) + p.min
 				p.changed(p.val)
 				return true, p

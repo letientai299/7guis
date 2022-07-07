@@ -3,5 +3,4 @@
 # such as nodmeon.
 
 pkill tui
-go build -race -o tui .
-./tui
+go build -race -o tui . && ./tui

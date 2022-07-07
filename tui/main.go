@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -28,6 +29,8 @@ func tasks(app *tview.Application) []Task {
 
 func main() {
 	configStyles()
+	tview.DoubleClickInterval = time.Millisecond * 50
+
 	app := createApp()
 	done := make(chan struct{})
 
@@ -121,7 +124,7 @@ func createPages(tasks []Task) *tview.Pages {
 
 func createSidebar(tasks []Task, pages *tview.Pages) tview.Primitive {
 	menu := createMenu(tasks, pages)
-	menu.SetCurrentItem(2)
+	menu.SetCurrentItem(5)
 	frame := tview.NewFrame(menu)
 	frame.SetBorder(true)
 	frame.SetBorders(0, 0, 1, 1, 1, 1)
