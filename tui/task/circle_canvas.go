@@ -57,7 +57,8 @@ type CircleCanvas struct {
 	centerDot      rune
 	dot            rune
 	slider         *Slider
-	onAddCircle    func(circle2 circle)
+	onAddCircle    func(c *circle)
+	onUpdateCircle func(c *circle, oldR, newR int)
 }
 
 func (cc *CircleCanvas) Draw(screen tcell.Screen) {
@@ -115,7 +116,7 @@ func (cc *CircleCanvas) MouseHandler() func(action tview.MouseAction, event *tce
 			if !cc.HasFocus() {
 				setFocus(cc)
 			} else {
-				cc.checkAndAddCircle(cc.mouseX, cc.mouseY)
+				cc.addOrSelectCircle(cc.mouseX, cc.mouseY)
 			}
 		}
 
@@ -123,7 +124,7 @@ func (cc *CircleCanvas) MouseHandler() func(action tview.MouseAction, event *tce
 	})
 }
 
-func (cc *CircleCanvas) checkAndAddCircle(x int, y int) {
+func (cc *CircleCanvas) addOrSelectCircle(x int, y int) {
 	c := &circle{x: x, y: y, r: 10}
 
 	center := [2]int{x, y}
@@ -131,6 +132,9 @@ func (cc *CircleCanvas) checkAndAddCircle(x int, y int) {
 		cc.circles = append(cc.circles, c)
 		cc.mCircles[center] = c
 		cc.removeSelected()
+		if cc.onAddCircle != nil {
+			cc.onAddCircle(c)
+		}
 		return
 	}
 
@@ -142,7 +146,12 @@ func (cc *CircleCanvas) checkAndAddCircle(x int, y int) {
 	sliderW := maxRadius - minRadius
 	cc.slider.SetRect(rx+center[0]-sliderW/2, ry+center[1]+3, sliderW, 3)
 	cc.slider.SetChangedFunc(func(v int64) {
-		cc.mCircles[center].r = int(v)
+		c := cc.mCircles[center]
+		oldR := c.r
+		c.r = int(v)
+		if cc.onUpdateCircle != nil {
+			cc.onUpdateCircle(c, oldR, c.r)
+		}
 	})
 }
 
@@ -194,4 +203,22 @@ func (cc *CircleCanvas) InputHandler() func(event *tcell.EventKey, setFocus func
 			cc.slider.InputHandler()(event, setFocus)
 		}
 	})
+}
+
+func (cc *CircleCanvas) SetOnAddCircle(fn func(c *circle)) *CircleCanvas {
+	cc.onAddCircle = fn
+	return cc
+}
+
+func (cc *CircleCanvas) SetOnUpdateCircle(fn func(c *circle, oldR, newR int)) *CircleCanvas {
+	cc.onUpdateCircle = fn
+	return cc
+}
+
+func (cc *CircleCanvas) setCircles(circles []*circle) {
+	cc.circles = circles
+	cc.mCircles = make(map[point]*circle)
+	for _, c := range cc.circles {
+		cc.mCircles[c.center()] = c
+	}
 }
