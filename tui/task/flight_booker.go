@@ -70,9 +70,9 @@ func (fb *flightBooker) render() tview.Primitive {
 	fb.departureInput.SetChangedFunc(func(s string) {
 		_, err := fb.parseDate(s)
 		if err != nil {
-			fb.departureInput.SetFieldTextColor(tcell.ColorRed)
+			fb.departureInput.SetFieldTextColor(ColorInvalid)
 		} else {
-			fb.departureInput.SetFieldTextColor(tcell.ColorWhite)
+			fb.departureInput.SetFieldTextColor(tview.Styles.PrimaryTextColor)
 		}
 		fb.adjustBookButton()
 	})
@@ -80,9 +80,9 @@ func (fb *flightBooker) render() tview.Primitive {
 	fb.arrivalInput.SetChangedFunc(func(s string) {
 		_, err := fb.parseDate(s)
 		if err != nil {
-			fb.arrivalInput.SetFieldTextColor(tcell.ColorRed)
+			fb.arrivalInput.SetFieldTextColor(ColorInvalid)
 		} else {
-			fb.arrivalInput.SetFieldTextColor(tcell.ColorWhite)
+			fb.arrivalInput.SetFieldTextColor(tview.Styles.PrimaryTextColor)
 		}
 		fb.adjustBookButton()
 	})
@@ -181,7 +181,7 @@ func (fb *flightBooker) enable(p tview.Primitive) {
 	var b *tview.Box
 	switch x := p.(type) {
 	case *tview.InputField:
-		x.SetLabelColor(tcell.ColorWhite)
+		x.SetLabelColor(tview.Styles.PrimaryTextColor)
 		b = x.Box
 	case *tview.Button:
 		x.SetBackgroundColor(tview.Styles.ContrastBackgroundColor)
@@ -197,10 +197,10 @@ func (fb *flightBooker) disable(p tview.Primitive) {
 	var b *tview.Box
 	switch x := p.(type) {
 	case *tview.InputField:
-		x.SetLabelColor(tcell.ColorGray)
+		x.SetLabelColor(ColorDisabled)
 		b = x.Box
 	case *tview.Button:
-		x.SetBackgroundColor(tcell.ColorGray)
+		x.SetBackgroundColor(ColorDisabled)
 		b = x.Box
 	}
 

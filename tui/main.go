@@ -27,6 +27,7 @@ func tasks(app *tview.Application) []Task {
 }
 
 func main() {
+	configStyles()
 	app := createApp()
 	done := make(chan struct{})
 
@@ -52,6 +53,22 @@ func main() {
 	<-done
 }
 
+func configStyles() {
+	tview.Styles = tview.Theme{
+		PrimitiveBackgroundColor:    tcell.ColorBlack,
+		ContrastBackgroundColor:     tcell.ColorDarkBlue,
+		MoreContrastBackgroundColor: tcell.ColorGreen,
+		BorderColor:                 tcell.ColorWhite,
+		TitleColor:                  tcell.ColorWhite,
+		GraphicsColor:               tcell.ColorWhite,
+		PrimaryTextColor:            tcell.ColorGhostWhite,
+		SecondaryTextColor:          tcell.ColorYellow,
+		TertiaryTextColor:           tcell.ColorGreen,
+		InverseTextColor:            tcell.ColorDeepSkyBlue,
+		ContrastSecondaryTextColor:  tcell.ColorDarkCyan,
+	}
+}
+
 func createApp() *tview.Application {
 	app := tview.NewApplication()
 	tasks := tasks(app)
@@ -60,8 +77,8 @@ func createApp() *tview.Application {
 	menu := createSidebar(tasks, pages)
 
 	flex := tview.NewFlex()
-	flex.AddItem(menu, len(url7GUIs)+3, 1, true)
-	flex.AddItem(pages, 0, 1, false)
+	flex.AddItem(menu, len(url7GUIs)+3, 1, false)
+	flex.AddItem(pages, 0, 1, true)
 
 	app.SetRoot(flex, true)
 	app.EnableMouse(true)
@@ -104,7 +121,7 @@ func createPages(tasks []Task) *tview.Pages {
 
 func createSidebar(tasks []Task, pages *tview.Pages) tview.Primitive {
 	menu := createMenu(tasks, pages)
-	menu.SetCurrentItem(2)
+	menu.SetCurrentItem(3)
 	frame := tview.NewFrame(menu)
 	frame.SetBorder(true)
 	frame.SetBorders(0, 0, 1, 1, 1, 1)

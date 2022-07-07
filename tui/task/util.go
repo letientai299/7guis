@@ -1,6 +1,14 @@
 package task
 
-import "github.com/rivo/tview"
+import (
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+)
+
+const (
+	ColorInvalid  = tcell.ColorRed
+	ColorDisabled = tcell.ColorDarkGray
+)
 
 func centerScreen(widget tview.Primitive, width, height int) tview.Primitive {
 	return tview.NewFlex().
