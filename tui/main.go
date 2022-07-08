@@ -86,7 +86,9 @@ func createApp() *tview.Application {
 	app.SetRoot(flex, true)
 	app.EnableMouse(true)
 
-	focusingMenu := true
+	focusingMenu := false
+	app.SetFocus(pages)
+
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		key := event.Key()
 		if key != tcell.KeyTAB && key != tcell.KeyBacktab {
@@ -124,7 +126,10 @@ func createPages(tasks []Task) *tview.Pages {
 
 func createSidebar(tasks []Task, pages *tview.Pages) tview.Primitive {
 	menu := createMenu(tasks, pages)
-	menu.SetCurrentItem(5)
+
+	// TODO (tai): remove this line
+	menu.SetCurrentItem(6)
+
 	frame := tview.NewFrame(menu)
 	frame.SetBorder(true)
 	frame.SetBorders(0, 0, 1, 1, 1, 1)
