@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -29,7 +28,6 @@ func tasks(app *tview.Application) []Task {
 
 func main() {
 	configStyles()
-	tview.DoubleClickInterval = time.Millisecond * 50
 
 	app := createApp()
 	done := make(chan struct{})
