@@ -24,14 +24,18 @@ func Cells() tview.Primitive {
 // column name.
 type Sheet struct {
 	*tview.Box
-	hint        string
-	hintView    *tview.TextView
-	cellWidth   int
+	hint      string
+	hintView  *tview.TextView
+	cellWidth int
+
 	txtStyle    tcell.Style
 	headerStyle tcell.Style
 	focusStyle  tcell.Style
-	offsetCell  [2]int // coordinate of the top-left visible cell
-	focusedCell [2]int
+	hoverStyle  tcell.Style
+
+	offset  [2]int // coordinate of the top-left visible cell
+	focused [2]int
+	hovered [2]int
 }
 
 func NewSheet() *Sheet {
@@ -40,33 +44,35 @@ Navigate: ←↑→↓, hklj, Home ^
 Enter to turn on edit mode, then Enter to commit change
 `)
 	s := &Sheet{
-		Box:         tview.NewBox(),
-		hint:        hint,
-		hintView:    tview.NewTextView().SetText(hint),
-		offsetCell:  [2]int{1, 1}, // unlike array, cell start with 1
-		focusedCell: [2]int{1, 1},
-		cellWidth:   10,
+		Box:       tview.NewBox(),
+		hint:      hint,
+		hintView:  tview.NewTextView().SetText(hint),
+		offset:    [2]int{1, 1}, // unlike array, cell start with 1
+		focused:   [2]int{1, 1},
+		cellWidth: 10,
+
 		txtStyle:    tcell.Style{}.Foreground(tview.Styles.PrimaryTextColor),
 		headerStyle: tcell.Style{}.Foreground(tview.Styles.SecondaryTextColor),
 		focusStyle:  tcell.Style{}.Foreground(tview.Styles.TertiaryTextColor),
+		hoverStyle:  tcell.Style{}.Foreground(tview.Styles.SecondaryTextColor),
 	}
 	return s
 }
 
 func (sh *Sheet) Draw(screen tcell.Screen) {
 	sh.Box.DrawForSubclass(screen, sh)
-	nRows, nCols, c1w := sh.viewportInfo()
+	nRows, nCols, c1w := sh.viewport()
 	sh.adjustViewport(nRows, nCols)
 	sh.drawSheet(screen, nRows, nCols, c1w)
+	sh.drawHovered(screen, nRows, nCols, c1w)
 	sh.drawFocusedCell(screen, c1w)
 	sh.drawHint(screen)
 }
 
-func (sh *Sheet) viewportInfo() (nRows int, nCols int, c1w int) {
+func (sh *Sheet) viewport() (nRows int, nCols int, c1w int) {
 	_, _, w, h := sh.GetInnerRect()
-	bot := strings.Count(sh.hint, "\n")
-	nRows = (h - bot /*hint*/ - 2 /*last and incomplete row*/) / 2
-	offset := sh.offsetCell
+	nRows = (h - 2 /*hint*/ - 2 /*last and incomplete row*/) / 2
+	offset := sh.offset
 	// 2 vertical line and 1 reserved space, in case, e.g. move from 99 to 100
 	c1w = len(strconv.Itoa(offset[0]+nRows)) + 3
 	nCols = (w - c1w) / (sh.cellWidth)
@@ -74,24 +80,24 @@ func (sh *Sheet) viewportInfo() (nRows int, nCols int, c1w int) {
 }
 
 func (sh *Sheet) adjustViewport(nRows int, nCols int) {
-	offset := sh.offsetCell
-	if sh.focusedCell[0] < offset[0] {
-		offset[0] = sh.focusedCell[0]
+	offset := sh.offset
+	if sh.focused[0] < offset[0] {
+		offset[0] = sh.focused[0]
 	}
 
-	if sh.focusedCell[1] < offset[1] {
-		offset[1] = sh.focusedCell[1]
+	if sh.focused[1] < offset[1] {
+		offset[1] = sh.focused[1]
 	}
 
-	if sh.focusedCell[0]-offset[0] > nRows-1 {
-		offset[0] = sh.focusedCell[0] - nRows + 1
+	if sh.focused[0]-offset[0] > nRows-1 {
+		offset[0] = sh.focused[0] - nRows + 1
 	}
 
-	if sh.focusedCell[1]-offset[1] > nCols-1 {
-		offset[1] = sh.focusedCell[1] - nCols + 1
+	if sh.focused[1]-offset[1] > nCols-1 {
+		offset[1] = sh.focused[1] - nCols + 1
 	}
 
-	sh.offsetCell = offset
+	sh.offset = offset
 }
 
 func (sh *Sheet) drawSheet(
@@ -110,7 +116,7 @@ func (sh *Sheet) drawSheet(
 
 		screen.SetContent(x, 2*r+y+1, tview.Borders.Vertical, nil, sh.txtStyle)
 		if r != 0 {
-			rowName := strconv.Itoa(r - 1 + sh.offsetCell[0])
+			rowName := strconv.Itoa(r - 1 + sh.offset[0])
 			sh.drawTxtAlignRight(screen, rowName, sh.headerStyle, x, 2*r+y+1, c1w)
 		}
 		screen.SetContent(x+c1w, 2*r+y+1, tview.Borders.Vertical, nil, sh.txtStyle)
@@ -132,7 +138,7 @@ func (sh *Sheet) drawSheet(
 		for c := 0; c < nCols; c++ {
 			pos := x + c1w + c*sh.cellWidth
 			if r == 0 {
-				colName := sh.colName(c + sh.offsetCell[1])
+				colName := sh.colName(c + sh.offset[1])
 				sh.drawTxtAlignRight(screen, colName, sh.headerStyle, pos, 2*r+y+1, sh.cellWidth)
 			}
 			screen.SetContent(x+c1w+(c+1)*sh.cellWidth, 2*r+y+1, tview.Borders.Vertical, nil, sh.txtStyle)
@@ -153,25 +159,41 @@ func (sh *Sheet) drawSheet(
 }
 
 func (sh *Sheet) drawFocusedCell(screen tcell.Screen, c1w int) {
+	sh.highlightCell(screen, sh.focused, c1w, sh.focusStyle)
+}
+
+func (sh *Sheet) drawHovered(screen tcell.Screen, rows int, cols int, c1w int) {
+	if !sh.HasFocus() ||
+		sh.hovered[0] < sh.offset[0] ||
+		sh.hovered[1] < sh.offset[1] ||
+		sh.hovered[0] > sh.offset[0]+rows ||
+		sh.hovered[1] > sh.offset[1]+cols {
+		return
+	}
+
+	sh.highlightCell(screen, sh.hovered, c1w, sh.hoverStyle)
+}
+
+func (sh *Sheet) highlightCell(screen tcell.Screen, loc [2]int, c1w int, style tcell.Style) {
 	x, y, _, _ := sh.GetInnerRect()
 
-	// calculate focused cell top left location
-	dy := (sh.focusedCell[0]-sh.offsetCell[0])*2 + 2
-	dx := (sh.focusedCell[1]-sh.offsetCell[1])*sh.cellWidth + c1w
+	// calculate focused loc top left location
+	dy := (loc[0]-sh.offset[0])*2 + 2
+	dx := (loc[1]-sh.offset[1])*sh.cellWidth + c1w
 
 	// draw the border using focus style
 	for i := 0; i < sh.cellWidth-1; i++ {
-		screen.SetContent(x+dx+1+i, y+dy, tview.Borders.HorizontalFocus, nil, sh.focusStyle)
-		screen.SetContent(x+dx+1+i, y+dy+2, tview.Borders.HorizontalFocus, nil, sh.focusStyle)
+		screen.SetContent(x+dx+1+i, y+dy, tview.Borders.HorizontalFocus, nil, style)
+		screen.SetContent(x+dx+1+i, y+dy+2, tview.Borders.HorizontalFocus, nil, style)
 	}
 
-	screen.SetContent(x+dx, y+dy+1, tview.Borders.VerticalFocus, nil, sh.focusStyle)
-	screen.SetContent(x+dx+sh.cellWidth, y+dy+1, tview.Borders.VerticalFocus, nil, sh.focusStyle)
+	screen.SetContent(x+dx, y+dy+1, tview.Borders.VerticalFocus, nil, style)
+	screen.SetContent(x+dx+sh.cellWidth, y+dy+1, tview.Borders.VerticalFocus, nil, style)
 
-	screen.SetContent(x+dx, y+dy, tview.Borders.TopLeftFocus, nil, sh.focusStyle)
-	screen.SetContent(x+dx+sh.cellWidth, y+dy, tview.Borders.TopRightFocus, nil, sh.focusStyle)
-	screen.SetContent(x+dx+sh.cellWidth, y+dy+2, tview.Borders.BottomRightFocus, nil, sh.focusStyle)
-	screen.SetContent(x+dx, y+dy+2, tview.Borders.BottomLeftFocus, nil, sh.focusStyle)
+	screen.SetContent(x+dx, y+dy, tview.Borders.TopLeftFocus, nil, style)
+	screen.SetContent(x+dx+sh.cellWidth, y+dy, tview.Borders.TopRightFocus, nil, style)
+	screen.SetContent(x+dx+sh.cellWidth, y+dy+2, tview.Borders.BottomRightFocus, nil, style)
+	screen.SetContent(x+dx, y+dy+2, tview.Borders.BottomLeftFocus, nil, style)
 }
 
 func (sh Sheet) drawHint(screen tcell.Screen) {
@@ -204,32 +226,32 @@ func (sh *Sheet) InputHandler() func(e *tcell.EventKey, focus func(p tview.Primi
 		k := e.Key()
 		ru := e.Rune()
 
-		rows, cols, _ := sh.viewportInfo()
+		rows, cols, _ := sh.viewport()
 
 		switch {
 		case k == tcell.KeyLeft || (k == tcell.KeyRune && ru == 'h'):
-			if sh.focusedCell[1] > 1 {
-				sh.focusedCell[1]--
+			if sh.focused[1] > 1 {
+				sh.focused[1]--
 			}
 		case k == tcell.KeyRight || (k == tcell.KeyRune && ru == 'l'):
-			sh.focusedCell[1]++
+			sh.focused[1]++
 
 		case k == tcell.KeyUp || (k == tcell.KeyRune && ru == 'k'):
-			if sh.focusedCell[0] > 1 {
-				sh.focusedCell[0]--
+			if sh.focused[0] > 1 {
+				sh.focused[0]--
 			}
 
 		case k == tcell.KeyDown || (k == tcell.KeyRune && ru == 'j'):
-			sh.focusedCell[0]++
+			sh.focused[0]++
 
 		// Move to top row
 		case (k == tcell.KeyHome && e.Modifiers() == tcell.ModShift) ||
 			(k == tcell.KeyRune && ru == 'g'):
-			sh.focusedCell[0] = 1
+			sh.focused[0] = 1
 
 		// Move to left most column
 		case k == tcell.KeyHome || (k == tcell.KeyRune && ru == '^'):
-			sh.focusedCell[1] = 1
+			sh.focused[1] = 1
 		}
 
 		sh.adjustViewport(rows, cols)
@@ -238,7 +260,33 @@ func (sh *Sheet) InputHandler() func(e *tcell.EventKey, focus func(p tview.Primi
 }
 
 func (sh *Sheet) MouseHandler() func(ac tview.MouseAction, e *tcell.EventMouse, focus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
-	return sh.Box.MouseHandler()
+	return sh.WrapMouseHandler(func(ac tview.MouseAction, e *tcell.EventMouse, f func(p tview.Primitive)) (bool, tview.Primitive) {
+		mx, my := e.Position()
+		if !sh.InRect(mx, my) {
+			sh.hovered = [2]int{0, 0}
+			return false, nil
+		}
+
+		rectX, rectY, _, _ := sh.GetInnerRect()
+		mx -= rectX
+		my -= rectY
+		rows, cols, w := sh.viewport()
+		r := ((my - 2) / 2) + sh.offset[0]
+		c := ((mx - w) / sh.cellWidth) + sh.offset[1]
+
+		if r == 0 || c == 0 || r > rows-1 || c > cols {
+			sh.hovered = [2]int{0, 0}
+			return false, nil
+		}
+
+		if e.Buttons() == tcell.ButtonPrimary {
+			sh.focused = [2]int{r, c}
+		} else {
+			sh.hovered = [2]int{r, c}
+		}
+
+		return true, sh
+	})
 }
 
 func (sh *Sheet) colName(n int) string {
