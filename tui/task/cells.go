@@ -56,6 +56,7 @@ Enter to turn on edit mode, then Enter to commit change
 
 	const cellWidth = 10
 
+	st := tview.Styles
 	s := &Sheet{
 		Box: tview.NewBox(),
 
@@ -71,10 +72,10 @@ Enter to turn on edit mode, then Enter to commit change
 		focused:   [2]int{1, 1},
 		cellWidth: cellWidth,
 
-		txtStyle:    tcell.Style{}.Foreground(tview.Styles.PrimaryTextColor),
-		headerStyle: tcell.Style{}.Foreground(tview.Styles.TertiaryTextColor),
-		focusStyle:  tcell.Style{}.Foreground(tview.Styles.TertiaryTextColor),
-		hoverStyle:  tcell.Style{}.Foreground(tview.Styles.SecondaryTextColor),
+		txtStyle:    tcell.Style{}.Foreground(st.PrimaryTextColor).Background(st.PrimitiveBackgroundColor),
+		headerStyle: tcell.Style{}.Foreground(st.TertiaryTextColor).Background(st.PrimitiveBackgroundColor),
+		focusStyle:  tcell.Style{}.Foreground(st.TertiaryTextColor).Background(st.PrimitiveBackgroundColor),
+		hoverStyle:  tcell.Style{}.Foreground(st.SecondaryTextColor).Background(st.PrimitiveBackgroundColor),
 	}
 
 	return s
@@ -162,7 +163,8 @@ func (sh *Sheet) drawSheet(
 				colName := sh.colName(c - 1 + sh.offset[1])
 				sh.drawTxtAlignRight(screen, colName, sh.headerStyle, pos+1, 2*r+y+1, sh.cellWidth)
 			} else {
-				display := sh.getDisplay([2]int{r, c})
+				cell := [2]int{r - 1 + sh.offset[0], c - 1 + sh.offset[1]}
+				display := sh.getDisplay(cell)
 				if display != "" {
 					_, err := strconv.ParseFloat(display, 64)
 					if err == nil {

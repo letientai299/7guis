@@ -67,8 +67,15 @@ func (cc *CircleCanvas) Draw(screen tcell.Screen) {
 		if cc.mouseX > 0 && cc.mouseY > 0 {
 			x, y, w, _ := cc.GetInnerRect()
 			mouseInfo := fmt.Sprintf("(%d,%d)", cc.mouseX, cc.mouseY)
-			tview.Print(screen, mouseInfo, x, y, w, tview.AlignLeft, tview.Styles.PrimaryTextColor)
-			screen.SetContent(cc.mouseX+x, cc.mouseY+y, cc.centerDot, nil, tcell.Style{}.Foreground(tview.Styles.SecondaryTextColor))
+			tview.Print(
+				screen, mouseInfo, x, y, w, tview.AlignLeft,
+				tview.Styles.PrimaryTextColor,
+			)
+			screen.SetContent(cc.mouseX+x, cc.mouseY+y, cc.centerDot, nil,
+				tcell.Style{}.
+					Foreground(tview.Styles.SecondaryTextColor).
+					Background(tview.Styles.PrimitiveBackgroundColor),
+			)
 		}
 	}
 
@@ -168,7 +175,9 @@ func (cc *CircleCanvas) draw(screen tcell.Screen, c *circle) {
 		color = tview.Styles.TertiaryTextColor
 	}
 
-	style := tcell.Style{}.Foreground(color)
+	style := tcell.Style{}.
+		Foreground(color).
+		Background(tview.Styles.PrimitiveBackgroundColor)
 	screen.SetContent(c.x+x, c.y+y, cc.centerDot, nil, style)
 
 	points := c.pointsOnCircle()
