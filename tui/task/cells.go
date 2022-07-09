@@ -16,7 +16,10 @@ const (
 	charDots = '…'
 )
 
-var regexCellName = regexp.MustCompile(`\b[A-Z]+\d+\b`)
+var (
+	regexCell  = regexp.MustCompile(`\b[A-Za-z]+\d+\b`)
+	regexRange = regexp.MustCompile(`\b[A-Za-z]+\d+:[a-zA-Z]+\d+\b`)
+)
 
 func Cells() tview.Primitive {
 	sh := NewSheet()
@@ -51,6 +54,8 @@ type Sheet struct {
 	headerStyle tcell.Style
 	focusStyle  tcell.Style
 	hoverStyle  tcell.Style
+	cmtStyle    tcell.Style
+	errStyle    tcell.Style
 
 	offset  [2]int // coordinate of the top-left visible cell
 	focused [2]int
@@ -59,6 +64,9 @@ type Sheet struct {
 	editing bool
 	input   *tview.InputField
 	mem     map[string]*cellData
+
+	funcs      map[string]goval.ExpressionFunction
+	recomputed map[string]struct{} // store cell that's already recomputed, avoid infinite recursion
 }
 
 func NewSheet() *Sheet {
@@ -89,6 +97,11 @@ Enter to turn on edit mode, then Enter to commit change
 		headerStyle: tcell.Style{}.Foreground(st.TertiaryTextColor).Background(st.PrimitiveBackgroundColor),
 		focusStyle:  tcell.Style{}.Foreground(st.TertiaryTextColor).Background(st.PrimitiveBackgroundColor),
 		hoverStyle:  tcell.Style{}.Foreground(st.SecondaryTextColor).Background(st.PrimitiveBackgroundColor),
+		cmtStyle:    tcell.Style{}.Foreground(st.ContrastSecondaryTextColor).Background(st.PrimitiveBackgroundColor),
+		errStyle:    tcell.Style{}.Foreground(ColorInvalid).Background(st.PrimitiveBackgroundColor),
+
+		funcs:      cellFuncs,
+		recomputed: make(map[string]struct{}),
 	}
 
 	return s
@@ -181,14 +194,14 @@ func (sh *Sheet) drawSheet(
 				sh.drawTxtAlignRight(screen, colName, sh.headerStyle, pos+1, 2*r+y+1, sh.cellWidth)
 			} else {
 				cell := [2]int{r - 1 + sh.offset[0], c - 1 + sh.offset[1]}
-				display := sh.getCellDisplay(cell)
+				display, displayStyle := sh.getCellDisplay(cell)
 				if display != "" {
 					_, err := strconv.ParseFloat(display, 64)
 					if err == nil {
 						// draw number align right
-						sh.drawTxtAlignRight(screen, display, sh.txtStyle, pos+1, 2*r+y+1, sh.cellWidth)
+						sh.drawTxtAlignRight(screen, display, displayStyle, pos+1, 2*r+y+1, sh.cellWidth)
 					} else {
-						sh.drawTxt(screen, display, sh.txtStyle, pos+1, 2*r+y+1, sh.cellWidth)
+						sh.drawTxt(screen, display, displayStyle, pos+1, 2*r+y+1, sh.cellWidth)
 					}
 				}
 			}
@@ -219,12 +232,7 @@ func (sh *Sheet) drawFocusedCell(screen tcell.Screen, c1w int) {
 		name = strings.Repeat(" ", c1w-len(name)) + name
 	}
 	name += " = "
-	var detail string
-	if sh.editing {
-		detail = sh.getCell(sh.focused).raw
-	} else {
-		detail = sh.getCellDisplay(sh.focused)
-	}
+	detail, detailStyle := sh.getCellDisplay(sh.focused)
 
 	for i, c := range name {
 		if c != ' ' {
@@ -234,7 +242,19 @@ func (sh *Sheet) drawFocusedCell(screen tcell.Screen, c1w int) {
 
 	for i, c := range detail {
 		if c != ' ' {
-			screen.SetContent(x+i+len(name), y, c, nil, sh.txtStyle)
+			screen.SetContent(x+i+len(name), y, c, nil, detailStyle)
+		}
+	}
+
+	raw := sh.getCell(sh.focused).raw
+	if strings.HasPrefix(raw, "=") {
+		raw = "// " + raw[1:]
+		n := len(name) + len(detail) + 2
+
+		for i, c := range raw {
+			if c != ' ' {
+				screen.SetContent(x+i+n, y, c, nil, sh.hoverStyle)
+			}
 		}
 	}
 
@@ -273,7 +293,6 @@ func (sh *Sheet) highlightCell(screen tcell.Screen, loc [2]int, c1w int, style t
 
 	// draw the border using focus style
 	for i := 0; i < sh.cellWidth; i++ {
-
 		screen.SetContent(x+dx+1+i, y+dy, tview.Borders.Horizontal, nil, style)
 		screen.SetContent(x+dx+1+i, y+dy+2, tview.Borders.Horizontal, nil, style)
 	}
@@ -440,6 +459,16 @@ func (sh *Sheet) colName(n int) string {
 	return string(a)
 }
 
+func (sh *Sheet) colNum(s string) int {
+	// https://leetcode.com/problems/excel-sheet-column-number/description/
+	n := 0
+	for _, c := range s {
+		n *= 26
+		n += int(c - 'A' + 1)
+	}
+	return n
+}
+
 func (sh *Sheet) cellName(cell [2]int) string {
 	return sh.colName(cell[1]) + strconv.Itoa(cell[0])
 }
@@ -468,99 +497,63 @@ func (sh *Sheet) getCell(cell [2]int) *cellData {
 }
 
 func (sh *Sheet) updateCell(cell [2]int, raw string) {
-	raw = strings.TrimSpace(raw)
+	sh.recomputed = make(map[string]struct{})
 
+	raw = strings.TrimSpace(raw)
 	current := sh.cellName(cell)
 	data, ok := sh.mem[current]
 	if !ok {
 		data = newCellData()
 	}
+	data.raw = raw
+	sh.mem[current] = data
+	sh.compute(current)
+}
+
+func (sh *Sheet) compute(name string) {
+	if _, ok := sh.recomputed[name]; ok {
+		return
+	}
+
+	data, ok := sh.mem[name]
+	if !ok {
+		data = newCellData()
+	}
 
 	defer func() {
-		if data.raw == "" {
-			delete(sh.mem, current)
-		} else {
-			sh.mem[current] = data
-		}
+		sh.mem[name] = data
+		sh.recomputed[name] = struct{}{}
 
 		for other := range data.needs {
 			o, ok := sh.mem[other]
 			if !ok {
 				o = newCellData()
+				sh.mem[other] = o
 			}
-			o.affects[current] = struct{}{}
-			sh.mem[other] = o
+			o.affects[name] = struct{}{}
 		}
 
 		for other := range data.affects {
-			sh.recompute(other)
+			sh.compute(other)
 		}
 	}()
 
-	data.raw = raw
 	if !strings.HasPrefix(data.raw, "=") {
-		data.display = raw
+		data.display = data.raw
+		data.value = 0
 		data.err = nil
-		data.needs = nil
-		for other := range data.needs {
-			if o, ok := sh.mem[other]; ok {
-				delete(o.affects, current)
-			}
-		}
-		sh.mem[current] = data
 		return
 	}
 
-	newNeeds := sh.needCellNames(data.raw)
-	for other := range data.needs {
-		if _, stillAffect := newNeeds[other]; !stillAffect {
-			o, ok := sh.mem[other]
-			if ok {
-				delete(o.affects, current)
-			}
-		}
-	}
-
-	data.needs = newNeeds
-	sh.compute(current, data)
-}
-
-func (sh *Sheet) compute(name string, data *cellData) {
-	// TODO (tai): this won't work with cell ranges
-	replacements := make([]string, 0, len(data.needs)*2)
-	data.err = nil
-
-	for need := range data.needs {
-		other, ok := sh.mem[need]
-
-		var f float64
-		if !ok || need == name {
-			other = newCellData()
-		}
-
-		if other.value != 0 {
-			f = other.value
-		} else if other.display != "" {
-			var err error
-			f, err = strconv.ParseFloat(other.display, 64)
-			if err != nil {
-				data.err = fmt.Errorf("%s(%s) is NaN", need, other.display)
-				break
-			}
-		}
-
-		replacements = append(replacements, need, strconv.FormatFloat(f, 'g', -1, 64))
-	}
-
-	if data.err != nil {
-		return
-	}
-
-	expStr := strings.NewReplacer(replacements...).
-		Replace(data.raw)[1:] // remove prefix equal sign (=)
-	result, err := goval.NewEvaluator().Evaluate(expStr, nil, nil)
+	needs, exp, err := sh.processRaw(data.raw)
 	if err != nil {
 		data.err = err
+		return
+	}
+
+	result, err := goval.NewEvaluator().Evaluate(exp, nil, sh.funcs)
+	if err != nil {
+		data.err = fmt.Errorf("invalid expression '%s', %v", exp, err)
 		return
 	}
 
@@ -576,32 +569,138 @@ func (sh *Sheet) compute(name string, data *cellData) {
 	default:
 		data.err = fmt.Errorf("%v is NaN", result)
 	}
-}
 
-func (sh *Sheet) needCellNames(raw string) map[string]struct{} {
-	rawNeeds := regexCellName.FindAllString(raw, -1)
-	needs := make(map[string]struct{})
-	for _, need := range rawNeeds {
-		needs[need] = struct{}{}
+	for other := range data.needs {
+		if _, stillAffect := needs[other]; !stillAffect {
+			o, ok := sh.mem[other]
+			if !ok {
+				delete(o.affects, name)
+			}
+		}
 	}
 
-	return needs
+	data.needs = needs
 }
 
-func (sh *Sheet) recompute(cell string) {
-	data, ok := sh.mem[cell]
+func (sh *Sheet) processRaw(raw string) (needs map[string]struct{}, exp string, err error) {
+	needs = make(map[string]struct{})
+
+	ranges := regexRange.FindAllString(raw, -1)
+	var replacements []string
+
+	seenRanges := make(map[string]string)
+	for _, ran := range ranges {
+		if _, ok := seenRanges[ran]; ok {
+			continue
+		}
+
+		from, to, found := strings.Cut(ran, ":")
+		if !found {
+			continue
+		}
+
+		from = strings.ToUpper(from)
+		to = strings.ToUpper(to)
+
+		fromLoc := sh.cellNameToLoc(from)
+		toLoc := sh.cellNameToLoc(to)
+		var sb strings.Builder
+
+		r1, r2 := min(fromLoc[0], toLoc[0]), max(fromLoc[0], toLoc[0])
+		c1, c2 := min(fromLoc[1], toLoc[1]), max(fromLoc[1], toLoc[1])
+
+		for i := r1; i <= r2; i++ {
+			for j := c1; j <= c2; j++ {
+				other := sh.cellName([2]int{i, j})
+				if _, ok := needs[other]; !ok {
+					needs[other] = struct{}{}
+				}
+
+				f, otherErr := sh.getCellValue(other)
+				if err == nil {
+					// don't stop on first error, since we want to collect all the needed cells
+					err = otherErr
+				}
+
+				_, _ = fmt.Fprintf(&sb, "%g,", f)
+			}
+		}
+
+		if err != nil {
+			return
+		}
+
+		rangeValue := sb.String()
+		rangeValue = rangeValue[:len(rangeValue)-1]
+		seenRanges[ran] = rangeValue
+		replacements = append(replacements, ran, rangeValue)
+	}
+
+	rawNeeds := regexCell.FindAllString(raw, -1)
+	replaced := make(map[string]struct{})
+	for _, rawOther := range rawNeeds {
+		other := strings.ToUpper(rawOther)
+
+		if _, ok := needs[other]; !ok {
+			needs[other] = struct{}{}
+		}
+
+		if _, ok := replaced[rawOther]; !ok {
+			var f float64
+			f, err = sh.getCellValue(other)
+			if err != nil {
+				break
+			}
+			v := strconv.FormatFloat(f, 'g', -1, 64)
+			replacements = append(replacements, rawOther, v, other, v)
+			replaced[other] = struct{}{}
+			replaced[rawOther] = struct{}{}
+		}
+	}
+
+	exp = strings.NewReplacer(replacements...).Replace(raw)[1:]
+	return
+}
+
+func (sh *Sheet) cellNameToLoc(name string) [2]int {
+	var loc [2]int
+	i := 0
+
+	for i < len(name) && name[i] < '0' || name[i] > '9' {
+		i++
+	}
+
+	loc[0], _ = strconv.Atoi(name[i:])
+	loc[1] = sh.colNum(name[:i])
+	return loc
+}
+
+func (sh *Sheet) getCellValue(need string) (float64, error) {
+	cell, ok := sh.mem[need]
 	if !ok {
-		data = newCellData()
+		cell = newCellData()
 	}
-	sh.compute(cell, data)
-	sh.mem[cell] = data
+
+	if cell.value != 0 {
+		return cell.value, nil
+	}
+
+	if cell.display == "" {
+		return 0, nil
+	}
+
+	f, err := strconv.ParseFloat(cell.display, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%s(%s) is NaN", need, cell.display)
+	}
+	return f, nil
 }
 
-func (sh *Sheet) getCellDisplay(cell [2]int) string {
+func (sh *Sheet) getCellDisplay(cell [2]int) (string, tcell.Style) {
 	c := sh.getCell(cell)
 	if c.err != nil {
-		return c.err.Error()
+		return c.err.Error(), sh.errStyle
 	}
 
-	return c.display
+	return c.display, sh.txtStyle
 }
