@@ -27,7 +27,7 @@ func enable(p tview.Primitive) {
 	var b *tview.Box
 	switch x := p.(type) {
 	case *tview.InputField:
-		x.SetLabelColor(tview.Styles.PrimaryTextColor)
+		x.SetLabelColor(tview.Styles.SecondaryTextColor)
 		b = x.Box
 	case *tview.Button:
 		x.SetBackgroundColor(tview.Styles.ContrastBackgroundColor)

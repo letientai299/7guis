@@ -1,7 +1,6 @@
 package task
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/rivo/tview"
@@ -13,13 +12,6 @@ func CRUD() tview.Primitive {
 		{name: "Bruce", surname: "Wayne"},
 		{name: "Clark", surname: "Kent"},
 		{name: "Diana", surname: "Prince"},
-	}
-
-	for i := 0; i < 40; i++ {
-		data = append(data, &person{
-			name:    fmt.Sprintf("%d name", i),
-			surname: fmt.Sprintf("%d surname", i),
-		})
 	}
 
 	c := &crud{

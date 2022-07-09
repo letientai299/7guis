@@ -125,9 +125,6 @@ func createPages(tasks []Task) *tview.Pages {
 func createSidebar(tasks []Task, pages *tview.Pages) tview.Primitive {
 	menu := createMenu(tasks, pages)
 
-	// TODO (tai): remove this line
-	menu.SetCurrentItem(6)
-
 	frame := tview.NewFrame(menu)
 	frame.SetBorder(true)
 	frame.SetBorders(0, 0, 1, 1, 1, 1)
