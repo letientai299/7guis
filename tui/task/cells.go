@@ -2,18 +2,21 @@ package task
 
 import (
 	"bytes"
+	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/maja42/goval"
 	"github.com/rivo/tview"
 )
 
-// https://en.wikipedia.org/wiki/Box-drawing_character
-// todo: use tview.Borders
 const (
 	charDots = '…'
 )
+
+var regexCellName = regexp.MustCompile(`\b[A-Z]+\d+\b`)
 
 func Cells() tview.Primitive {
 	sh := NewSheet()
@@ -23,7 +26,17 @@ func Cells() tview.Primitive {
 type cellData struct {
 	raw     string
 	display string
-	affects []string
+	value   float64
+	affects map[string]struct{}
+	needs   map[string]struct{}
+	err     error
+}
+
+func newCellData() *cellData {
+	return &cellData{
+		affects: make(map[string]struct{}),
+		needs:   make(map[string]struct{}),
+	}
 }
 
 // Sheet supports up to 26 columns since I'm too lazy to write the code for
@@ -45,7 +58,7 @@ type Sheet struct {
 
 	editing bool
 	input   *tview.InputField
-	data    map[string]*cellData
+	mem     map[string]*cellData
 }
 
 func NewSheet() *Sheet {
@@ -54,7 +67,7 @@ Navigate: ←↑→↓, hklj, Home ^
 Enter to turn on edit mode, then Enter to commit change
 `)
 
-	const cellWidth = 10
+	const cellWidth = 15
 
 	st := tview.Styles
 	s := &Sheet{
@@ -64,7 +77,7 @@ Enter to turn on edit mode, then Enter to commit change
 			SetLabelWidth(0).
 			SetFieldWidth(cellWidth),
 
-		data: make(map[string]*cellData),
+		mem: make(map[string]*cellData),
 
 		hint:      hint,
 		hintView:  tview.NewTextView().SetText(hint),
@@ -93,7 +106,10 @@ func (sh *Sheet) Draw(screen tcell.Screen) {
 
 func (sh *Sheet) viewport() (nRows int, nCols int, c1w int) {
 	_, _, w, h := sh.GetInnerRect()
-	nRows = (h - 2 /*hint*/ - 2 /*last and incomplete row*/) / 2
+	nRows = (h -
+		2 /*hint*/ -
+		2 /*last and incomplete row*/ -
+		1 /*focused cell detail*/) / 2
 	offset := sh.offset
 	// 2 vertical line and 1 reserved space, in case, e.g. move from 99 to 100
 	c1w = len(strconv.Itoa(offset[0]+nRows)) + 3
@@ -129,6 +145,7 @@ func (sh *Sheet) drawSheet(
 	c1w int, // width of header col
 ) {
 	x, y, w, _ := sh.GetInnerRect()
+	y++
 	for r := 0; r < nRows+1; r++ {
 		if r != 0 {
 			screen.SetContent(x, 2*r+y, tview.Borders.LeftT, nil, sh.txtStyle)
@@ -164,7 +181,7 @@ func (sh *Sheet) drawSheet(
 				sh.drawTxtAlignRight(screen, colName, sh.headerStyle, pos+1, 2*r+y+1, sh.cellWidth)
 			} else {
 				cell := [2]int{r - 1 + sh.offset[0], c - 1 + sh.offset[1]}
-				display := sh.getDisplay(cell)
+				display := sh.getCellDisplay(cell)
 				if display != "" {
 					_, err := strconv.ParseFloat(display, 64)
 					if err == nil {
@@ -195,12 +212,39 @@ func (sh *Sheet) drawSheet(
 
 func (sh *Sheet) drawFocusedCell(screen tcell.Screen, c1w int) {
 	sh.highlightCell(screen, sh.focused, c1w, sh.focusStyle)
+
+	x, y, _, _ := sh.GetInnerRect()
+	name := sh.cellName(sh.focused)
+	if len(name) < c1w {
+		name = strings.Repeat(" ", c1w-len(name)) + name
+	}
+	name += " = "
+	var detail string
+	if sh.editing {
+		detail = sh.getCell(sh.focused).raw
+	} else {
+		detail = sh.getCellDisplay(sh.focused)
+	}
+
+	for i, c := range name {
+		if c != ' ' {
+			screen.SetContent(x+i, y, c, nil, sh.focusStyle)
+		}
+	}
+
+	for i, c := range detail {
+		if c != ' ' {
+			screen.SetContent(x+i+len(name), y, c, nil, sh.txtStyle)
+		}
+	}
+
 	if !sh.editing {
 		screen.HideCursor()
 		return
 	}
 
-	x, y, _, _ := sh.GetInnerRect()
+	y++
+
 	ix := x + (sh.focused[1]-sh.offset[1])*(sh.cellWidth+1) + c1w + 1
 	iy := y + (sh.focused[0]-sh.offset[0]+1)*2 + 1
 	sh.input.SetRect(ix, iy, sh.cellWidth, 1)
@@ -221,6 +265,7 @@ func (sh *Sheet) drawHovered(screen tcell.Screen, rows int, cols int, c1w int) {
 
 func (sh *Sheet) highlightCell(screen tcell.Screen, loc [2]int, c1w int, style tcell.Style) {
 	x, y, _, _ := sh.GetInnerRect()
+	y++
 
 	// calculate focused loc top left location
 	dy := (loc[0]-sh.offset[0])*2 + 2
@@ -228,17 +273,18 @@ func (sh *Sheet) highlightCell(screen tcell.Screen, loc [2]int, c1w int, style t
 
 	// draw the border using focus style
 	for i := 0; i < sh.cellWidth; i++ {
-		screen.SetContent(x+dx+1+i, y+dy, tview.Borders.HorizontalFocus, nil, style)
-		screen.SetContent(x+dx+1+i, y+dy+2, tview.Borders.HorizontalFocus, nil, style)
+
+		screen.SetContent(x+dx+1+i, y+dy, tview.Borders.Horizontal, nil, style)
+		screen.SetContent(x+dx+1+i, y+dy+2, tview.Borders.Horizontal, nil, style)
 	}
 
-	screen.SetContent(x+dx, y+dy+1, tview.Borders.VerticalFocus, nil, style)
-	screen.SetContent(x+dx+sh.cellWidth+1, y+dy+1, tview.Borders.VerticalFocus, nil, style)
+	screen.SetContent(x+dx, y+dy+1, tview.Borders.Vertical, nil, style)
+	screen.SetContent(x+dx+sh.cellWidth+1, y+dy+1, tview.Borders.Vertical, nil, style)
 
-	screen.SetContent(x+dx, y+dy, tview.Borders.TopLeftFocus, nil, style)
-	screen.SetContent(x+dx+sh.cellWidth+1, y+dy, tview.Borders.TopRightFocus, nil, style)
-	screen.SetContent(x+dx+sh.cellWidth+1, y+dy+2, tview.Borders.BottomRightFocus, nil, style)
-	screen.SetContent(x+dx, y+dy+2, tview.Borders.BottomLeftFocus, nil, style)
+	screen.SetContent(x+dx, y+dy, tview.Borders.TopLeft, nil, style)
+	screen.SetContent(x+dx+sh.cellWidth+1, y+dy, tview.Borders.TopRight, nil, style)
+	screen.SetContent(x+dx+sh.cellWidth+1, y+dy+2, tview.Borders.BottomRight, nil, style)
+	screen.SetContent(x+dx, y+dy+2, tview.Borders.BottomLeft, nil, style)
 }
 
 func (sh Sheet) drawHint(screen tcell.Screen) {
@@ -288,7 +334,7 @@ func (sh *Sheet) InputHandler() func(e *tcell.EventKey, focus func(p tview.Primi
 		if sh.editing {
 			if e.Key() == tcell.KeyEnter {
 				raw := sh.input.GetText()
-				sh.update(sh.focused, raw)
+				sh.updateCell(sh.focused, raw)
 				sh.editing = false
 				setFocus(sh)
 				return
@@ -308,7 +354,7 @@ func (sh *Sheet) InputHandler() func(e *tcell.EventKey, focus func(p tview.Primi
 		switch {
 		case k == tcell.KeyEnter:
 			sh.editing = true
-			sh.input.SetText(sh.getRaw(sh.focused))
+			sh.input.SetText(sh.getCell(sh.focused).raw)
 
 		case k == tcell.KeyLeft || (k == tcell.KeyRune && ru == 'h'):
 			if sh.focused[1] > 1 {
@@ -349,6 +395,8 @@ func (sh *Sheet) MouseHandler() func(ac tview.MouseAction, e *tcell.EventMouse, 
 		}
 
 		rectX, rectY, _, _ := sh.GetInnerRect()
+		rectY++
+
 		mx -= rectX
 		my -= rectY
 		rows, cols, w := sh.viewport()
@@ -362,7 +410,7 @@ func (sh *Sheet) MouseHandler() func(ac tview.MouseAction, e *tcell.EventMouse, 
 
 		if e.Buttons() == tcell.ButtonPrimary {
 			// commit the input text
-			sh.update(sh.focused, sh.input.GetText())
+			sh.updateCell(sh.focused, sh.input.GetText())
 			sh.editing = false
 			sh.focused = [2]int{r, c}
 		} else {
@@ -411,40 +459,149 @@ func (sh *Sheet) Focus(delegate func(p tview.Primitive)) {
 	}
 }
 
-func (sh *Sheet) getRaw(cell [2]int) string {
-	data, ok := sh.data[sh.cellName(cell)]
+func (sh *Sheet) getCell(cell [2]int) *cellData {
+	data, ok := sh.mem[sh.cellName(cell)]
 	if !ok {
-		return ""
+		return newCellData()
 	}
-	return data.raw
+	return data
 }
 
-func (sh *Sheet) update(cell [2]int, raw string) {
+func (sh *Sheet) updateCell(cell [2]int, raw string) {
 	raw = strings.TrimSpace(raw)
 
-	name := sh.cellName(cell)
-	data, ok := sh.data[name]
+	current := sh.cellName(cell)
+	data, ok := sh.mem[current]
 	if !ok {
-		data = &cellData{
-			raw:     raw,
-			display: raw, // TODO: calculate
-		}
-	} else {
-		data.raw = raw
-		data.display = raw
+		data = newCellData()
 	}
 
-	if data.raw == "" {
-		delete(sh.data, name)
-	} else {
-		sh.data[name] = data
+	defer func() {
+		if data.raw == "" {
+			delete(sh.mem, current)
+		} else {
+			sh.mem[current] = data
+		}
+
+		for other := range data.needs {
+			o, ok := sh.mem[other]
+			if !ok {
+				o = newCellData()
+			}
+			o.affects[current] = struct{}{}
+			sh.mem[other] = o
+		}
+
+		for other := range data.affects {
+			sh.recompute(other)
+		}
+	}()
+
+	data.raw = raw
+	if !strings.HasPrefix(data.raw, "=") {
+		data.display = raw
+		data.err = nil
+		data.needs = nil
+		for other := range data.needs {
+			if o, ok := sh.mem[other]; ok {
+				delete(o.affects, current)
+			}
+		}
+		sh.mem[current] = data
+		return
+	}
+
+	newNeeds := sh.needCellNames(data.raw)
+	for other := range data.needs {
+		if _, stillAffect := newNeeds[other]; !stillAffect {
+			o, ok := sh.mem[other]
+			if ok {
+				delete(o.affects, current)
+			}
+		}
+	}
+
+	data.needs = newNeeds
+	sh.compute(current, data)
+}
+
+func (sh *Sheet) compute(name string, data *cellData) {
+	// TODO (tai): this won't work with cell ranges
+	replacements := make([]string, 0, len(data.needs)*2)
+	data.err = nil
+
+	for need := range data.needs {
+		other, ok := sh.mem[need]
+
+		var f float64
+		if !ok || need == name {
+			other = newCellData()
+		}
+
+		if other.value != 0 {
+			f = other.value
+		} else if other.display != "" {
+			var err error
+			f, err = strconv.ParseFloat(other.display, 64)
+			if err != nil {
+				data.err = fmt.Errorf("%s(%s) is NaN", need, other.display)
+				break
+			}
+		}
+
+		replacements = append(replacements, need, strconv.FormatFloat(f, 'g', -1, 64))
+	}
+
+	if data.err != nil {
+		return
+	}
+
+	expStr := strings.NewReplacer(replacements...).
+		Replace(data.raw)[1:] // remove prefix equal sign (=)
+	result, err := goval.NewEvaluator().Evaluate(expStr, nil, nil)
+	if err != nil {
+		data.err = err
+		return
+	}
+
+	switch v := result.(type) {
+	case float64:
+		data.value = v
+		data.display = fmt.Sprintf("%g", v)
+		data.err = nil
+	case int:
+		data.value = float64(v)
+		data.display = strconv.Itoa(v)
+		data.err = nil
+	default:
+		data.err = fmt.Errorf("%v is NaN", result)
 	}
 }
 
-func (sh *Sheet) getDisplay(cell [2]int) string {
-	data, ok := sh.data[sh.cellName(cell)]
-	if !ok {
-		return ""
+func (sh *Sheet) needCellNames(raw string) map[string]struct{} {
+	rawNeeds := regexCellName.FindAllString(raw, -1)
+	needs := make(map[string]struct{})
+	for _, need := range rawNeeds {
+		needs[need] = struct{}{}
 	}
-	return data.display
+
+	return needs
+}
+
+func (sh *Sheet) recompute(cell string) {
+	data, ok := sh.mem[cell]
+	if !ok {
+		data = newCellData()
+	}
+	sh.compute(cell, data)
+	sh.mem[cell] = data
+}
+
+func (sh *Sheet) getCellDisplay(cell [2]int) string {
+	c := sh.getCell(cell)
+	if c.err != nil {
+		return c.err.Error()
+	}
+
+	return c.display
 }
