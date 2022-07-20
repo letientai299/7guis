@@ -1,14 +1,43 @@
 import SwiftUI
 
 struct ContentView: View {
+  let views = [
+    (name: "Counter", view: Counter()),
+    (name: "Temperature Converter", view: Counter()),
+    (name: "Flight Booker", view: Counter()),
+    (name: "Timer", view: Counter()),
+    (name: "CRUD", view: Counter()),
+    (name: "Circle Drawer", view: Counter()),
+    (name: "Cells", view: Counter()),
+  ]
+
   var body: some View {
-    Text("Hello, world!")
-      .padding()
+    NavigationView {
+      List {
+        ForEach(views, id: \.name) { (name, view) in
+          NavigationLink {
+            view
+          } label: {
+            Text(name)
+          }
+        }
+      }
+      .navigationTitle("7 GUIs")
+
+      // this only appears as second columns on iPad and mac.
+      views[0].view
+    }
   }
 }
 
 struct ContentView_Previews: PreviewProvider {
   static var previews: some View {
-    ContentView()
+    Group {
+      ContentView()
+        .preferredColorScheme(.light)
+      ContentView()
+        .preferredColorScheme(.dark)
+        .previewInterfaceOrientation(.landscapeLeft)
+    }
   }
 }
