@@ -6,9 +6,9 @@ The tools I'm using are:
 - XCode 13.4.1
 - Swift 5.6
 - [swift-format](https://github.com/apple/swift-format) CLI, because XCode is so
-  bad that it can't format code on save. More detail in the below
+  bad that it can't format code on save. See [Setup formatter](#setup-formatter)
 
-## Setup
+## Setup formatter
 
 I need to enforce code formating to be more readable while working on this.
 Because Xcode is so shitty, I need to use some script to use `swift-format` on

@@ -2,13 +2,21 @@ import SwiftUI
 
 struct ContentView: View {
   let views = [
-    (name: "Counter", view: Counter()),
-    (name: "Temperature Converter", view: Counter()),
-    (name: "Flight Booker", view: Counter()),
-    (name: "Timer", view: Counter()),
-    (name: "CRUD", view: Counter()),
-    (name: "Circle Drawer", view: Counter()),
-    (name: "Cells", view: Counter()),
+    (
+      name: "Counter",
+      view: AnyView(Counter())
+    ),
+
+    (
+      name: "Temperature Converter",
+      view: AnyView(TemperatureConverter())
+    ),
+
+    //    (name: "Flight Booker", view: Counter()),
+    //    (name: "Timer", view: Counter()),
+    //    (name: "CRUD", view: Counter()),
+    //    (name: "Circle Drawer", view: Counter()),
+    //    (name: "Cells", view: Counter()),
   ]
 
   var body: some View {
@@ -17,6 +25,9 @@ struct ContentView: View {
         ForEach(views, id: \.name) { (name, view) in
           NavigationLink {
             view
+              .navigationBarTitle(name)
+              .navigationBarTitleDisplayMode(.inline)
+              .padding()
           } label: {
             Text(name)
           }
